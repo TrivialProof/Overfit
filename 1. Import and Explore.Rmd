@@ -25,7 +25,7 @@ nrow(train)
 The column 'target' is the outcome that we will wish to predict, and the rest are just arbitrary, meaningless data. The training dataset is much, much smaller than the test. Interesting. Lets see some summary statistics of the data.
 
 ```{r}
-summary(train)
+#summary(train)
 ```
 
 This is very hard to read, so lets see how to interpret this a bit better.
