@@ -1,17 +1,21 @@
 ---
 title: "Import and Explore"
 author: "Eoin Scanlon"
-date: "2/5/2020"
 output: rmarkdown::github_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
+library(grid)
+library(gridExtra)
+#install.packages("MVN")
+library(MVN)
+library(reshape2)
 
 ```
 
-## Import and sneak peak
+# Import and sneak peak
 
 Data can be downloaded from <https://www.kaggle.com/c/dont-overfit-ii/data>. Always good to have a look at the structure of the data first.
 
@@ -35,9 +39,102 @@ train.data <- train[,-c(1,2)] # Remove unnecessary columns
 train.means <- colMeans(train.data) # Means of each column
 train.sd <- apply(train.data, 2, sd) # SD of each column
 
-ggplot(as.data.frame(train.means), aes(x = train.means)) + geom_histogram(color="black", fill="blue",binwidth = 0.01)
-ggplot(as.data.frame(train.sd), aes(x = train.sd)) + geom_histogram(color="black", fill="green",binwidth = 0.01)
+p1<- ggplot(as.data.frame(train.means), aes(x = train.means)) + geom_histogram(color="black", fill="blue",binwidth = 0.01)
+p2<- ggplot(as.data.frame(train.sd), aes(x = train.sd)) + geom_histogram(color="black", fill="green",binwidth = 0.01)
+
+grid.arrange(p1, p2, ncol = 2)
 
 ```
+
+Ok so the means seem to be spread from about -0.2 to +0.2, with a normal distribution type vibe. So lets draw a normal distribution over the plots and see.
+
+```{r}
+# Means
+p1 <- ggplot(as.data.frame(train.means), aes(x = train.means)) + geom_histogram(aes(y =..density..),
+                                                                          color="black", 
+                                                                          fill="blue",
+                                                                          binwidth = 0.01) + 
+  stat_function(fun = dnorm, args = list(mean = mean(train.means), sd = sd(train.means)))
+
+# Standard Deviations
+p2 <- ggplot(as.data.frame(train.sd), aes(x = train.sd)) + geom_histogram(aes(y =..density..),
+                                                                    color="black", 
+                                                                    fill="green",
+                                                                    binwidth = 0.01) +
+  stat_function(fun = dnorm, args = list(mean = mean(train.sd), sd = sd(train.sd)))
+
+grid.arrange(p1, p2, ncol = 2)
+
+```
+
+## Testing for Normality
+
+We can test whether these data are normally distributed using QQplots.
+```{r}
+# Test for normality
+qqnorm(train.means,main="QQ plot of means",pch=19)
+qqline(train.means)
+
+qqnorm(train.sd,main="QQ plot of SDs",pch=19)
+qqline(train.sd)
+
+```
+
+They seem to be pretty consistent with normal distributions. But these are just the *means* and the *standard deviations*. If we want to look at the actual data, we should use something non-visual, since there are so may columns. The Shapiro-Wilk test might be a good idea for single column inputs, but here we can use a multivariate normality test.
+
+```{r, results="hide"}
+mvn(train.data,multivariatePlot = "qq")
+```
+
+So clearly, the data is not multivariate normal, or the points above would lie along the straight line. 
+
+## Correlation Analysis
+
+```{r}
+res <- cor(train.data)
+#round(res, 2)
+melted_data <- melt(res)
+ggplot(data = melted_data, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()
+
+```
+
+At this scale, this looks like pure white noise. There may be correlations within this data, but we just can't see them here because of the size issue. So lets look at a histogram of all the correlations.
+
+```{r}
+head(melted_data)
+ggplot(melted_data, aes(x = melted_data$value)) + geom_histogram(aes(y =..density..),
+                                                                    color="black", 
+                                                                    fill="yellow",
+                                                                    binwidth = 0.01) + 
+  stat_function(fun = dnorm, args = list(mean = mean(melted_data$value), sd = sd(melted_data$value)))
+
+```
+
+Pretty safe to say so that all of the data is uncorrelated. The correlation values are almost a textbook normal distrubution with a mean of 0 and small standard deviation. The small spike at 1 is the values' self-correlations.
+
+So lets draw a line under this now and assume (safely) that there is very little correlation between columns, the data is not multivariate normal and that the means/standard deviations *between* columns are normally distributed.
+
+# Further Data Exploration
+
+First up, standardise the data. Its not really necessary, as the data is so similar in terms of range. But still, can't hurt.
+
+```{r}
+scaled.dat <- scale(train.data)
+```
+
+## PCA
+
+Lets look at a principle component analysis. Since the dataset is so large (300 columns/variables), we would hope that we'll discover that a small number of components (eigenvectors) account for a significant proportion of the data.
+
+```{r}
+dat.pca <- prcomp(scaled.dat)
+x <- summary(dat.pca)
+x$importance[,1:10]
+```
+
+No such luck. It seems as though all 300 components are equally 'important'. There doesn't seem to be much here in terms of eigenvector decomposition. From the output above, we can see that the cumulative population of even the top 10 components accounts for only around 13% of all variance in the data. Hardly useful.
+
+
 
 
