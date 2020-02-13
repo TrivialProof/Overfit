@@ -159,3 +159,63 @@ plot(k, type='b', avg_neighbour, xlab='Number of neighbours', ylab='Average Accu
 # It seems as though 7 might be the optimum number of neighbours
 
 # Odd plot.
+
+# Lets try support vector machine, SVM
+library(e1071)
+library(rpart)
+
+## svm
+svm.model <- svm(scaled.train[,301] ~ .,data = scaled.train)
+svm.pred <- predict(svm.model, scaled.test)
+# Have a look at both predictions and actual target data
+svm.pred
+scaled.test[,301]
+# Seems like we could guess a cutoff (not very accurate).
+
+## svm with different values
+svm.model <- svm(scaled.train[,301] ~ .,data = scaled.train,cost = 5)
+svm.pred <- predict(svm.model, scaled.test)
+# Have a look at both predictions and actual target data
+svm.pred
+scaled.test[,301]
+# Seems like we could guess a cutoff (not very accurate).
+
+# Find a function to define a cutoff value
+cutoff_fn <- function(z){
+  sp <- ifelse(svm.pred > z,1,0) # Apply the cutoff
+  sp_tab <- table(sp,scaled.test[,301]) # Tabulate the values
+  # Calculate the total it got correct
+  correct <- sum(diag(sp_tab))/sum(sp_tab)
+}
+z <- seq(0.1, 1, by=0.05)
+accuracy <- sapply(z, cutoff_fn)
+
+plot(z, type='b', accuracy, xlab='Cutoff Value for Prediction', ylab='Accuracy Score (%)', frame=FALSE)
+# It seems as though a cutoff of 0.45 might be the optimum cutoff value
+
+
+# Create a dataframe and store the next function's results
+df <- data.frame(matrix(ncol = 3, nrow = length(z)))
+x <- c("0.1", "1", "10")
+colnames(df) <- x
+
+
+# Now try to change the cost value in the svm() function
+costvector <- c(0.1,1,1000)
+#accuracy <- sapply(z, cutoff_fn)
+
+for (i in 1:length(costvector)) {
+  svm.model <- svm(scaled.train[,301] ~ .,data = scaled.train,cost = i)
+  svm.pred <- predict(svm.model, scaled.test)
+  
+  accuracy <- sapply(z, cutoff_fn)
+  df[,i] <- accuracy
+}
+
+
+plot(z, type='b', df[,1], xlab='Cutoff Value for Prediction', ylab='Accuracy Score (%)', frame=FALSE)
+lines(z, df[,2], col="red",type='b')
+lines(z, df[,3], col="blue",type = 'b')
+
+# So a cutoff value of 0.45 and a cost of 1 seems good.
+

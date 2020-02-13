@@ -15,6 +15,9 @@ library(reshape2)
 library(cluster) 
 library(factoextra)
 library(class)
+library(e1071)
+library(rpart)
+
 ```
 
 # Import and sneak peak
@@ -218,3 +221,64 @@ plot(k, type='b', avg_neighbour, xlab='Number of neighbours', ylab='Average Accu
 
 Quite a strange result. I supsect there is something *off* here, but lets say that k = 7 nearest neighbours then is the best accuracy. Most choices of k in fact have an accuracy of 76%, but simplicity wins out in modelling.
 
+
+## Support Vector Machine (SVM)
+
+Possibly a good model for prediction, but need to fine tune some parameters. Lets try it first.
+
+```{r}
+## svm
+svm.model <- svm(scaled.train[,301] ~ .,data = scaled.train)
+svm.pred <- predict(svm.model, scaled.test)
+# Have a look at both predictions and actual target data
+svm.pred
+scaled.test[,301]
+# Seems like we could guess a cutoff (not very accurate).
+
+```
+
+So approximating the cutoff value for binary prediction of the target variable is required. We can just iterate over a sequence and examine the accuracy. A simple function is a good call.
+
+```{r}
+# Find a function to define a cutoff value
+cutoff_fn <- function(z){
+  sp <- ifelse(svm.pred > z,1,0) # Apply the cutoff
+  sp_tab <- table(sp,scaled.test[,301]) # Tabulate the values
+  # Calculate the total it got correct
+  correct <- sum(diag(sp_tab))/sum(sp_tab)
+}
+z <- seq(0.1, 1, by=0.05)
+accuracy <- sapply(z, cutoff_fn)
+
+plot(z, type='b', accuracy, xlab='Cutoff Value for Prediction', ylab='Accuracy Score (%)', frame=FALSE)
+```
+
+It seems as though a cutoff of 0.45 might be the optimum cutoff value. What about the *cost* function in the svm method?
+
+```{r}
+# Create a dataframe and store the next function's results
+df <- data.frame(matrix(ncol = 3, nrow = length(z)))
+x <- c("0.1", "1", "10")
+colnames(df) <- x
+
+
+# Now try to change the cost value in the svm() function
+costvector <- c(0.1,1,1000)
+#accuracy <- sapply(z, cutoff_fn)
+
+for (i in 1:length(costvector)) {
+  svm.model <- svm(scaled.train[,301] ~ .,data = scaled.train,cost = i)
+  svm.pred <- predict(svm.model, scaled.test)
+  
+  accuracy <- sapply(z, cutoff_fn)
+  df[,i] <- accuracy
+}
+
+
+plot(z, type='b', df[,1], xlab='Cutoff Value for Prediction', ylab='Accuracy Score (%)', frame=FALSE)
+lines(z, df[,2], col="red",type='b')
+lines(z, df[,3], col="blue",type = 'b')
+
+```
+
+So lets go with a cost of 1 and a prediction cut off of 0.45.
