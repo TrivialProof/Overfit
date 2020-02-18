@@ -15,6 +15,8 @@ l#ibrary(downloader)
 library(grDevices)
 library(cluster) 
 library(factoextra)
+install.packages("caret")
+library(caret)
 
 # Set wd and import
 train <- read.csv(file = 'train.csv')
@@ -218,4 +220,19 @@ lines(z, df[,2], col="red",type='b')
 lines(z, df[,3], col="blue",type = 'b')
 
 # So a cutoff value of 0.45 and a cost of 1 seems good.
+
+
+# K(10) fold cross validations
+library(caret)
+
+# Define train control for k fold cross validation
+train_control <- trainControl(method="cv", number=10)
+mod <- train(as.factor(target)~., data=train[,-c(1)], method = "svmLinear", trControl = train_control)
+mod
+
+
+# Experimenting
+tc <- tune.control(cross = 5)
+prioir_svm <- tune.svm(train[,-c(1)], y = as.factor(target), cost = Cs, gamma = gammas,
+                       tunecontrol = tc)
 

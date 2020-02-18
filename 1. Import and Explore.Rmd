@@ -17,7 +17,7 @@ library(factoextra)
 library(class)
 library(e1071)
 library(rpart)
-
+library(caret)
 ```
 
 # Import and sneak peak
@@ -281,4 +281,16 @@ lines(z, df[,3], col="blue",type = 'b')
 
 ```
 
-So lets go with a cost of 1 and a prediction cut off of 0.45.
+So lets go with a cost of 1 and a prediction cut off of 0.45. To further stress test the model, lets do k fold cross validation.
+
+## K fold (10) Cross Validation
+
+Explained [here](http://www.sthda.com/english/articles/38-regression-model-validation/157-cross-validation-essentials-in-r/), "The k-fold cross-validation method evaluates the model performance on different subset of the training data and then calculate the average prediction error rate. The algorithm is as follows:
+
+1. Randomly split the data set into k-subsets (or k-fold) (for example 5 subsets)
+2. Reserve one subset and train the model on all other subsets
+3. Test the model on the reserved subset and record the prediction error
+4. Repeat this process until each of the k subsets has served as the test set.
+5. Compute the average of the k recorded errors. This is called the cross-validation error serving as the performance metric for the model.
+
+K-fold cross-validation (CV) is a robust method for estimating the accuracy of a model.
