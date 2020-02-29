@@ -225,14 +225,29 @@ lines(z, df[,3], col="blue",type = 'b')
 # K(10) fold cross validations
 library(caret)
 
-# Define train control for k fold cross validation
-train_control <- trainControl(method="cv", number=10)
-mod <- train(as.factor(target)~., data=train[,-c(1)], method = "svmLinear", trControl = train_control)
-mod
+set.seed(121)
+flds <- createFolds(1:nrow(scaled.dat), k = 10, list = TRUE, returnTrain = FALSE)
 
+# Create an empty vector to store the accuracy in
+result <- c()
 
-# Experimenting
-tc <- tune.control(cross = 5)
-prioir_svm <- tune.svm(train[,-c(1)], y = as.factor(target), cost = Cs, gamma = gammas,
-                       tunecontrol = tc)
+# Run the SVM model for each fold, where each fold indexing is the test set
+for (i in 1:10) {
+  # Get the new training and test sets for current fold
+  new.test.set <- scaled.dat[unlist(flds[i],use.names = FALSE),]
+  new.train.set <- scaled.dat[-unlist(flds[i],use.names = FALSE),]
+  
+  # Run the model for the values found above
+  svm.mod <- svm(new.train.set[,301] ~ .,data = new.train.set,cost = 5)
+  svm.pred <- predict(svm.mod, new.test.set)
+  
+  # Now apply the cutoff value of 0.45
+  sp <- ifelse(svm.pred > 0.45,1,0) # Apply the cutoff
+  sp_tab <- table(sp,new.test.set[,301]) # Tabulate the values
+  # Calculate the total it got correct
+  #correct <- sum(diag(sp_tab))/sum(sp_tab)
+  result[i] <- sum(diag(sp_tab))/sum(sp_tab)
+}
 
+result
+mean(result) # 0.86%, not bad!

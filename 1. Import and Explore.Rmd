@@ -293,4 +293,37 @@ Explained [here](http://www.sthda.com/english/articles/38-regression-model-valid
 4. Repeat this process until each of the k subsets has served as the test set.
 5. Compute the average of the k recorded errors. This is called the cross-validation error serving as the performance metric for the model.
 
-K-fold cross-validation (CV) is a robust method for estimating the accuracy of a model.
+K-fold cross-validation (CV) is a robust method for estimating the accuracy of a model. I usually prefer to do it pseudo-manually so that I can see each fold.
+
+In the following chunk of code, we create the folds, divide up the original (scaled) data into train and test again (for each of the 10 folds) and run the SVM algorithm using a cost value of 5 and a prediction cutoff of 0.45, as determined above.
+
+```{r}
+set.seed(121)
+flds <- createFolds(1:nrow(scaled.dat), k = 10, list = TRUE, returnTrain = FALSE)
+
+# Create an empty vector to store the accuracy in
+result <- c()
+
+# Run the SVM model for each fold, where each fold indexing is the test set
+for (i in 1:10) {
+  # Get the new training and test sets for current fold
+  new.test.set <- scaled.dat[unlist(flds[i],use.names = FALSE),]
+  new.train.set <- scaled.dat[-unlist(flds[i],use.names = FALSE),]
+  
+  # Run the model for the values found above
+  svm.mod <- svm(new.train.set[,301] ~ .,data = new.train.set,cost = 5)
+  svm.pred <- predict(svm.mod, new.test.set)
+  
+  # Now apply the cutoff value of 0.45
+  sp <- ifelse(svm.pred > 0.45,1,0) # Apply the cutoff
+  sp_tab <- table(sp,new.test.set[,301]) # Tabulate the values
+  # Calculate the total it got correct
+  #correct <- sum(diag(sp_tab))/sum(sp_tab)
+  result[i] <- sum(diag(sp_tab))/sum(sp_tab)
+}
+
+result
+mean(result)
+```
+
+This is not a bad level of accuracy! Probably enough for now to try and submit to Kaggle to see how we do on the (much) larger & unseen dataset!
